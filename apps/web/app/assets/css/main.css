@@ -1,0 +1,1039 @@
+/*
+ * Небольшая собственная система вместо библиотеки компонентов — см. D-010.
+ *
+ * Оформление держится на четырёх решениях:
+ *
+ * 1. Шрифты свои и лежат рядом — Inter для текста, JetBrains Mono для чисел
+ *    и времени (D-022). Сервис локальный и за паролем; ходить за шрифтами в
+ *    чужой CDN значит сообщать ему, что кто-то открыл расписание.
+ * 2. Палитр несколько, и переключаются они целиком — как в Omarchy (D-021).
+ *    Каждая задаёт тринадцать опорных цветов, остальное выводится из них
+ *    `color-mix`, поэтому новая палитра стоит дюжины строк, а не сотни.
+ * 3. Светлая и тёмная нарисованы обе, а не выведены одна из другой.
+ * 4. Цветом красится метка, а не текст. Плашка, полоска, точка — цветные;
+ *    сам текст всегда чернилами. Иначе экран ревью, где у каждой строки своё
+ *    состояние, превращается в пёструю простыню.
+ */
+
+/* ── шрифты ─────────────────────────────────────────────────────────────── */
+@font-face {
+  font-family: 'Inter Variable';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/inter-cyrillic.woff2') format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+  font-family: 'Inter Variable';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/inter-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F, U+2212, U+2215;
+}
+@font-face {
+  font-family: 'JetBrains Mono Variable';
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+  src: url('/fonts/jetbrains-mono-cyrillic.woff2') format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+  font-family: 'JetBrains Mono Variable';
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+  src: url('/fonts/jetbrains-mono-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F, U+2212, U+2215;
+}
+
+/* ── палитры ────────────────────────────────────────────────────────────────
+ *
+ * Каждая задаёт тринадцать опорных цветов на светлую и тёмную сторону;
+ * остальное выводится из них ниже через `color-mix`.
+ *
+ * Селекторы намеренно не привязаны к корню: тот же `data-palette` на маленьком
+ * образце в меню выбора красит его настоящими цветами гаммы, а не отдельным
+ * списком, который разъедется с этим при первой же правке.
+ */
+
+/* Tokyo Night */
+:root,
+[data-palette='tokyo'] {
+  --bg: #f4f5fa;
+  --surface: #ffffff;
+  --sunk: #eef0f7;
+  --line: #e0e3ef;
+  --line-soft: #ebedf5;
+
+  --ink: #171922;
+  --ink-2: #545a72;
+  --ink-3: #7d8399;
+
+  --accent: #2f6fed;
+  --accent-2: #7c5cf0;
+  --accent-3: #0e7490;
+  --ok: #0e8a5f;
+  --bad: #e0435a;
+  color-scheme: light;
+}
+
+/*
+ * Три состояния темы:
+ *   1) светлая палитра выше — основа, действует всегда;
+ *   2) системная тёмная — но только если пользователь не выбрал светлую явно;
+ *   3) явный выбор тёмной — перекрывает системную светлую.
+ * Атрибуты data-theme и data-palette ставит useTheme; до гидратации — встроенный
+ * скрипт из nuxt.config, иначе страница моргнёт светлой при тёмной системе.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']),
+  :root:not([data-theme='light']) [data-palette='tokyo'] {
+    color-scheme: dark;
+    --bg: #16161e;
+    --surface: #1a1b26;
+    --sunk: #21222f;
+    --line: #2f3142;
+    --line-soft: #262735;
+
+    --ink: #c8d0f0;
+    --ink-2: #9aa2c8;
+    --ink-3: #757c9e;
+
+    --accent: #7aa2f7;
+    --accent-2: #bb9af7;
+    --accent-3: #7dcfff;
+    --ok: #9ece6a;
+    --bad: #f7768e;
+  }
+}
+:root[data-theme='dark'],
+:root[data-theme='dark'] [data-palette='tokyo'] {
+  color-scheme: dark;
+  --bg: #16161e;
+  --surface: #1a1b26;
+  --sunk: #21222f;
+  --line: #2f3142;
+  --line-soft: #262735;
+
+  --ink: #c8d0f0;
+  --ink-2: #9aa2c8;
+  --ink-3: #757c9e;
+
+  --accent: #7aa2f7;
+  --accent-2: #bb9af7;
+  --accent-3: #7dcfff;
+  --ok: #9ece6a;
+  --bad: #f7768e;
+}
+
+/* Catppuccin — Latte и Mocha */
+[data-palette='catppuccin'] {
+  --bg: #eff1f5;
+  --surface: #ffffff;
+  --sunk: #e6e9ef;
+  --line: #dce0e8;
+  --line-soft: #e6e9ef;
+
+  --ink: #3c3f58;
+  --ink-2: #5c5f77;
+  --ink-3: #7f8296;
+
+  --accent: #1e66f5;
+  --accent-2: #8839ef;
+  --accent-3: #179299;
+  --ok: #2f8f1f;
+  --bad: #d20f39;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light'])[data-palette='catppuccin'],
+  :root:not([data-theme='light']) [data-palette='catppuccin'] {
+    --bg: #181825;
+    --surface: #1e1e2e;
+    --sunk: #262637;
+    --line: #313244;
+    --line-soft: #292a3a;
+
+    --ink: #cdd6f4;
+    --ink-2: #a6adc8;
+    --ink-3: #7f849c;
+
+    --accent: #89b4fa;
+    --accent-2: #cba6f7;
+    --accent-3: #94e2d5;
+    --ok: #a6e3a1;
+    --bad: #f38ba8;
+  }
+}
+:root[data-theme='dark'][data-palette='catppuccin'],
+:root[data-theme='dark'] [data-palette='catppuccin'] {
+  --bg: #181825;
+  --surface: #1e1e2e;
+  --sunk: #262637;
+  --line: #313244;
+  --line-soft: #292a3a;
+
+  --ink: #cdd6f4;
+  --ink-2: #a6adc8;
+  --ink-3: #7f849c;
+
+  --accent: #89b4fa;
+  --accent-2: #cba6f7;
+  --accent-3: #94e2d5;
+  --ok: #a6e3a1;
+  --bad: #f38ba8;
+}
+
+/* Север */
+[data-palette='nord'] {
+  --bg: #eceff4;
+  --surface: #ffffff;
+  --sunk: #e5e9f0;
+  --line: #d8dee9;
+  --line-soft: #e5e9f0;
+
+  --ink: #2e3440;
+  --ink-2: #4c566a;
+  --ink-3: #77839a;
+
+  --accent: #3f6ea8;
+  --accent-2: #7a6ec2;
+  --accent-3: #2f7d8c;
+  --ok: #3b8f6e;
+  --bad: #bf4756;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light'])[data-palette='nord'],
+  :root:not([data-theme='light']) [data-palette='nord'] {
+    --bg: #292e39;
+    --surface: #2e3440;
+    --sunk: #363d4b;
+    --line: #434c5e;
+    --line-soft: #3b4252;
+
+    --ink: #eceff4;
+    --ink-2: #c4ccd8;
+    --ink-3: #8a93a5;
+
+    --accent: #88c0d0;
+    --accent-2: #b48ead;
+    --accent-3: #8fbcbb;
+    --ok: #a3be8c;
+    --bad: #d98088;
+  }
+}
+:root[data-theme='dark'][data-palette='nord'],
+:root[data-theme='dark'] [data-palette='nord'] {
+  --bg: #292e39;
+  --surface: #2e3440;
+  --sunk: #363d4b;
+  --line: #434c5e;
+  --line-soft: #3b4252;
+
+  --ink: #eceff4;
+  --ink-2: #c4ccd8;
+  --ink-3: #8a93a5;
+
+  --accent: #88c0d0;
+  --accent-2: #b48ead;
+  --accent-3: #8fbcbb;
+  --ok: #a3be8c;
+  --bad: #d98088;
+}
+
+/* Графит — почти без цвета, один акцент */
+[data-palette='graphite'] {
+  --bg: #f4f4f5;
+  --surface: #ffffff;
+  --sunk: #f0f0f1;
+  --line: #e4e4e7;
+  --line-soft: #ededee;
+
+  --ink: #18181b;
+  --ink-2: #52525b;
+  --ink-3: #7c7c85;
+
+  --accent: #4f46e5;
+  --accent-2: #9333ea;
+  --accent-3: #0d9488;
+  --ok: #0e8a5f;
+  --bad: #dc2626;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light'])[data-palette='graphite'],
+  :root:not([data-theme='light']) [data-palette='graphite'] {
+    --bg: #111113;
+    --surface: #18181b;
+    --sunk: #1f1f23;
+    --line: #2b2b31;
+    --line-soft: #232327;
+
+    --ink: #e8e8ea;
+    --ink-2: #a1a1aa;
+    --ink-3: #7b7b84;
+
+    --accent: #a5a2ff;
+    --accent-2: #d6a5ff;
+    --accent-3: #5eead4;
+    --ok: #5fd3a0;
+    --bad: #ff7b7b;
+  }
+}
+:root[data-theme='dark'][data-palette='graphite'],
+:root[data-theme='dark'] [data-palette='graphite'] {
+  --bg: #111113;
+  --surface: #18181b;
+  --sunk: #1f1f23;
+  --line: #2b2b31;
+  --line-soft: #232327;
+
+  --ink: #e8e8ea;
+  --ink-2: #a1a1aa;
+  --ink-3: #7b7b84;
+
+  --accent: #a5a2ff;
+  --accent-2: #d6a5ff;
+  --accent-3: #5eead4;
+  --ok: #5fd3a0;
+  --bad: #ff7b7b;
+}
+
+/*
+ * Производные значения объявлены один раз: подстановка `var()` считается на
+ * том же элементе после того, как каскад выбрал победившую палитру, поэтому
+ * порядок блоков выше значения не имеет.
+ *
+ * Подложка — цвет, разбавленный поверхностью; текст на ней — тот же цвет,
+ * доведённый до чернил.
+ *
+ * Жёлтого в системе нет намеренно. Чтобы жёлтый текст читался на светлом, его
+ * приходится затемнять — а тёмный жёлтый и есть коричневый; на тёмной стороне
+ * тот же оттенок выглядит золотом. Роль «обрати внимание» отдана фиолетовому:
+ * он не мутнеет ни в одну сторону.
+ */
+:root {
+  --accent-bg: color-mix(in oklab, var(--accent) 12%, var(--surface));
+  --accent-ink: color-mix(in oklab, var(--accent) 60%, var(--ink));
+  --ok-bg: color-mix(in oklab, var(--ok) 12%, var(--surface));
+  --ok-ink: color-mix(in oklab, var(--ok) 60%, var(--ink));
+  --note-bg: color-mix(in oklab, var(--accent-2) 12%, var(--surface));
+  --note-ink: color-mix(in oklab, var(--accent-2) 60%, var(--ink));
+  --bad-bg: color-mix(in oklab, var(--bad) 12%, var(--surface));
+  --bad-ink: color-mix(in oklab, var(--bad) 60%, var(--ink));
+
+  --font-ui: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* геометрия плотная, как в Linear: скругления заметны, но не превращают
+     карточку в таблетку, а высота элементов не съедает экран */
+  --radius: 10px;
+  --radius-sm: 8px;
+  --radius-xs: 6px;
+  --tap: 36px;
+  /* но всё, во что придётся попадать пальцем на телефоне, остаётся крупным */
+  --tap-touch: 44px;
+
+  /*
+   * Подложка под чужое изображение. Единственный цвет вне палитры — и
+   * намеренно: скриншот приносит свои цвета, и любая гамма под ним с ними
+   * спорит. Нейтральная тёмная не спорит ни с одной, поэтому она одна на все
+   * гаммы и на обе стороны света.
+   */
+  --stage: #0b0e13;
+
+  /* тень едва заметна: глубину держат границы, а не размытие под карточкой */
+  --shadow: 0 1px 2px color-mix(in oklab, var(--ink) 6%, transparent);
+  --shadow-lift: 0 8px 24px -12px color-mix(in oklab, var(--ink) 22%, transparent);
+  --ring: 0 0 0 3px color-mix(in oklab, var(--accent) 30%, transparent);
+}
+
+/* ── основа ─────────────────────────────────────────────────────────────── */
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#__nuxt {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.55;
+  letter-spacing: -0.006em;
+  -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--accent) 22%, transparent);
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.94em;
+}
+
+a {
+  color: var(--accent-ink);
+  text-decoration-color: color-mix(in oklab, var(--accent) 40%, transparent);
+  text-underline-offset: 0.15em;
+}
+a:hover {
+  text-decoration-color: currentColor;
+}
+
+/* ── каркас ─────────────────────────────────────────────────────────────── */
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.page {
+  flex: 1;
+  width: 100%;
+  max-width: 52rem;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 4rem;
+  padding-bottom: max(4rem, calc(3rem + env(safe-area-inset-bottom)));
+}
+
+/* ── типографика ────────────────────────────────────────────────────────── */
+h1 {
+  font-size: 1.55rem;
+  font-weight: 650;
+  line-height: 1.15;
+  margin: 0 0 0.3rem;
+  letter-spacing: -0.03em;
+}
+h2 {
+  font-size: 1.05rem;
+  font-weight: 620;
+  margin: 0 0 0.75rem;
+  letter-spacing: -0.02em;
+}
+.card h2,
+.card + .card h2 {
+  margin-top: 0;
+}
+h3 {
+  font-size: 0.92rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.lede {
+  color: var(--ink-2);
+  margin: 0 0 1.5rem;
+  font-size: 0.93rem;
+}
+.muted {
+  color: var(--ink-2);
+  font-size: 0.88rem;
+}
+.tiny {
+  font-size: 0.78rem;
+  color: var(--ink-3);
+  line-height: 1.45;
+}
+
+/* ── карточки ───────────────────────────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  padding: 1.15rem 1.25rem;
+  box-shadow: var(--shadow);
+}
+.card + .card {
+  margin-top: 1rem;
+}
+.card--link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+.card--link:hover {
+  border-color: color-mix(in oklab, var(--accent) 45%, var(--line));
+  box-shadow: var(--shadow-lift);
+  transform: translateY(-1px);
+}
+/* зона перетаскивания: пунктир говорит «сюда можно бросить» без единого слова */
+.card--drop {
+  display: block;
+  text-align: center;
+  cursor: pointer;
+  border-style: dashed;
+  border-color: var(--line);
+  transition: border-color 0.15s, background 0.15s;
+}
+.card--drop:hover,
+.card--drop--over {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+
+/* ── кнопки ─────────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: var(--tap);
+  padding: 0 1rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--sunk);
+  color: var(--ink);
+  font-size: 0.88rem;
+  font-weight: 550;
+  font-family: inherit;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, opacity 0.15s;
+}
+.btn:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--accent) 12%, var(--sunk));
+  color: var(--accent-ink);
+}
+.btn:active:not(:disabled) {
+  transform: translateY(0.5px);
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.btn--primary {
+  background: var(--accent);
+  /* на тёмной палитре акцент светлый, и белый текст на нём не читается */
+  color: color-mix(in oklab, var(--surface) 88%, var(--ink));
+}
+.btn--primary:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--accent) 88%, var(--ink));
+  color: color-mix(in oklab, var(--surface) 88%, var(--ink));
+}
+.btn--danger {
+  background: var(--bad-bg);
+  color: var(--bad-ink);
+}
+.btn--danger:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--bad) 20%, var(--surface));
+  color: var(--bad-ink);
+}
+.btn--wide {
+  width: 100%;
+  min-height: var(--tap-touch);
+}
+.btn--small {
+  min-height: 32px;
+  padding: 0 0.65rem;
+  font-size: 0.8rem;
+  border-radius: var(--radius-xs);
+}
+
+/* ── поля ───────────────────────────────────────────────────────────────── */
+/*
+ * Поля перечисляются исключением, а не списком типов: поле без атрибута `type`
+ * (по умолчанию он `text` и его почти никогда не пишут) под список не попадало
+ * бы, и браузер рисовал бы его своим квадратным полем посреди страницы.
+ *
+ * Исключения завёрнуты в `:where()`, чтобы правило весило как один элемент:
+ * иначе четыре `:not([type=…])` перевешивают классы в компонентах.
+ */
+input:where(:not([type='checkbox'], [type='radio'], [type='file'], [type='range'])),
+select {
+  width: 100%;
+  min-height: var(--tap-touch);
+  padding: 0 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.95rem;
+  font-family: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  appearance: none;
+}
+select {
+  /* своя стрелка: системная в тёмной теме остаётся светлой */
+  padding-right: 1.9rem;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 1rem) 55%, calc(100% - 0.7rem) 55%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+input:hover:not(:disabled),
+select:hover:not(:disabled) {
+  border-color: color-mix(in oklab, var(--accent) 35%, var(--line));
+}
+input:disabled,
+select:disabled {
+  background: var(--sunk);
+  color: var(--ink-3);
+  cursor: not-allowed;
+}
+input[type='checkbox']:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+input::placeholder,
+::placeholder {
+  color: var(--ink-3);
+  opacity: 1;
+}
+
+/*
+ * Фокус: своё кольцо вместо системного контура. Системный рисуется вплотную к
+ * прямоугольнику элемента и на скруглённом поле выглядит наклейкой.
+ */
+input:focus,
+select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--ring);
+}
+.btn:focus-visible,
+a:focus-visible,
+summary:focus-visible,
+button:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+/* кольцо повторяет форму элемента, поэтому скругление задаём только ссылке
+   в тексте: у пилюли и кнопки своё, и перебивать его нельзя */
+a:not([class]):focus-visible {
+  border-radius: 4px;
+}
+
+label.field {
+  display: block;
+  margin-bottom: 1rem;
+}
+label.field > span {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--ink-2);
+  margin-bottom: 0.35rem;
+}
+
+input[type='checkbox'] {
+  width: 1.15rem;
+  height: 1.15rem;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* ── плашки ─────────────────────────────────────────────────────────────── */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.chip--ok {
+  color: var(--ok-ink);
+  background: var(--ok-bg);
+}
+.chip--warn {
+  color: var(--note-ink);
+  background: var(--note-bg);
+}
+.chip--bad {
+  color: var(--bad-ink);
+  background: var(--bad-bg);
+}
+.chip--info {
+  color: var(--accent-ink);
+  background: var(--accent-bg);
+}
+.chip--mute {
+  color: var(--ink-3);
+  background: var(--sunk);
+}
+
+/*
+ * Сообщение: подложка нейтральная, вид различает полоска слева.
+ *
+ * Цветная подложка под каждым сообщением заливает страницу оттенком — а на
+ * экране ревью сообщений бывает несколько подряд. Тонкая насыщенная полоска
+ * читается не хуже и оставляет страницу спокойной.
+ */
+.alert {
+  border-radius: var(--radius-sm);
+  padding: 0.7rem 0.9rem;
+  font-size: 0.88rem;
+  color: var(--ink);
+  background: var(--sunk);
+  margin-bottom: 0.75rem;
+  border-left: 3px solid var(--ink-3);
+}
+.alert--bad {
+  border-left-color: var(--bad);
+}
+.alert--warn {
+  border-left-color: var(--accent-2);
+}
+.alert--ok {
+  border-left-color: var(--ok);
+}
+
+/*
+ * Подтверждение необратимого.
+ *
+ * Затемнение берётся из `--stage`, а не из `--ink`. Чернила на тёмной стороне
+ * светлые, и подложка из них не гасит страницу, а высветляет её — вместо
+ * «отодвинутого назад» получается «выцветшее». `--stage` тёмная в обеих темах,
+ * поэтому затемняет всегда.
+ */
+.modal-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 39;
+  background: color-mix(in oklab, var(--stage) 55%, transparent);
+}
+.modal {
+  position: fixed;
+  z-index: 40;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(26rem, calc(100vw - 2rem));
+  padding: 1.1rem 1.2rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-lift);
+}
+.modal h3 {
+  margin-top: 0;
+}
+
+/* ── раскладка ──────────────────────────────────────────────────────────── */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.row--between {
+  justify-content: space-between;
+}
+.row--wrap {
+  flex-wrap: wrap;
+}
+.row--top {
+  align-items: flex-start;
+}
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.spinner {
+  width: 0.95rem;
+  height: 0.95rem;
+  border: 2px solid color-mix(in oklab, var(--accent) 25%, transparent);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: inline-block;
+  vertical-align: -0.15em;
+  flex: none;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ── ввод времени: два списка, всегда 24 часа ───────────────────────────── */
+.timefield {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.timefield__label {
+  line-height: 1;
+}
+.timefield__controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.timefield select {
+  width: auto;
+  min-width: 4.25rem;
+  padding: 0 1.5rem 0 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+  background-position: calc(100% - 0.75rem) 55%, calc(100% - 0.5rem) 55%;
+}
+.timefield__sep {
+  color: var(--ink-3);
+  font-weight: 700;
+}
+
+.edit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.75rem;
+  border-radius: var(--radius-sm);
+  background: var(--sunk);
+}
+.edit__fields {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+.edit__dash {
+  color: var(--ink-3);
+  font-weight: 700;
+  padding-bottom: 0.6rem;
+}
+.edit__hint {
+  margin: 0;
+}
+/* когда поля переносятся на две строки, тире между ними висит в воздухе */
+@media (max-width: 32rem) {
+  .edit__dash {
+    display: none;
+  }
+}
+
+/* ── строка плана ───────────────────────────────────────────────────────── */
+.entry__times {
+  margin-top: 0.3rem;
+  font-size: 0.95rem;
+}
+.entry__times--faint {
+  color: var(--ink-3);
+}
+.entry__arrow {
+  color: var(--ink-3);
+  margin: 0 0.4rem;
+}
+.entry__note {
+  margin-top: 0.3rem;
+}
+.entry__note--warn {
+  color: var(--note-ink);
+}
+/* строка, требующая внимания, помечена кромкой: галочка с неё снята заранее,
+   и без метки непонятно, почему именно с этой */
+.card--attention {
+  border-left: 3px solid var(--accent-2);
+}
+
+/* выбранные кадры перед загрузкой */
+.previews {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+.previews img {
+  width: 100%;
+  aspect-ratio: 59 / 128;
+  object-fit: cover;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--line);
+}
+/* у PDF превью нет: страницы отрисовываются на сервере, до загрузки
+   показывать нечего, поэтому на его месте стоит подписанная плашка */
+.previews__file {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  width: 100%;
+  aspect-ratio: 59 / 128;
+  border-radius: var(--radius-xs);
+  border: 1px dashed var(--line);
+  color: var(--muted);
+  text-align: center;
+}
+.previews__name {
+  font-size: 0.72rem;
+  padding: 0 0.3rem;
+}
+
+/* итоговая полоса: держится у нижней кромки, пока идёт разбор плана */
+.summary {
+  position: sticky;
+  bottom: 0.5rem;
+  bottom: max(0.5rem, env(safe-area-inset-bottom));
+  margin-top: 1rem;
+  box-shadow: var(--shadow-lift);
+}
+
+/* ── исходные кадры и их просмотр ───────────────────────────────────────── */
+.shots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.6rem;
+}
+.shot {
+  position: relative;
+  display: block;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  background: var(--surface);
+  cursor: zoom-in;
+}
+.shot:hover {
+  border-color: var(--accent);
+}
+.shot img {
+  display: block;
+  width: 100%;
+}
+.shot__zoom {
+  position: absolute;
+  right: 0.35rem;
+  bottom: 0.35rem;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: var(--radius-xs);
+  display: grid;
+  place-items: center;
+  background: color-mix(in oklab, var(--stage) 72%, transparent);
+  color: #fff;
+}
+
+/*
+ * Просмотр кадра во весь экран.
+ *
+ * Тёмная здесь только сцена под изображением — по причине из `--stage`.
+ * Всё остальное живёт по общим правилам: панель — такая же поверхность, как у
+ * карточки, кнопки в ней самые обычные. Своя горсть кнопок с прошитыми
+ * `rgba(255,255,255,…)` тут была ровно тем расхождением, которое потом
+ * незаметно разъезжается с остальным интерфейсом.
+ */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  background: var(--stage);
+}
+.lightbox__bar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: none;
+  padding: 0.5rem 0.75rem;
+  padding-top: max(0.5rem, env(safe-area-inset-top));
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+.lightbox__count {
+  margin-right: auto;
+  color: var(--ink-3);
+  font-size: 0.8rem;
+}
+.lightbox__stage {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  justify-content: center;
+  padding: 0.75rem;
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+.lightbox__img {
+  /* margin:auto центрирует и при этом не срезает верх, когда кадр не влез */
+  margin: auto;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  cursor: zoom-in;
+  border-radius: var(--radius-xs);
+  /* белое под кадром: скриншот бывает с прозрачными краями, и на тёмной
+     сцене они просвечивали бы дырой посреди изображения */
+  background: #fff;
+}
+.lightbox__img--natural {
+  max-width: none;
+  max-height: none;
+  cursor: zoom-out;
+}
+
+/* листание: обычная кнопка, только поставленная поверх кадра */
+.lightbox__nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2.75rem;
+  height: 3.25rem;
+  padding: 0;
+  box-shadow: var(--shadow-lift);
+}
+.lightbox__nav--prev {
+  left: 0.75rem;
+}
+.lightbox__nav--next {
+  right: 0.75rem;
+}
+
+/* на телефоне боковые стрелки легли бы поверх кадра — уводим их вниз */
+@media (max-width: 40rem) {
+  .lightbox__stage {
+    padding-bottom: max(4.5rem, calc(3.5rem + env(safe-area-inset-bottom)));
+  }
+  .lightbox__nav {
+    top: auto;
+    transform: none;
+    bottom: max(0.6rem, env(safe-area-inset-bottom));
+    width: 4.5rem;
+    height: 2.75rem;
+  }
+  .lightbox__nav--prev {
+    left: 50%;
+    margin-left: -4.9rem;
+  }
+  .lightbox__nav--next {
+    right: 50%;
+    margin-right: -4.9rem;
+  }
+}

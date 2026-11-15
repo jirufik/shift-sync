@@ -1,0 +1,16 @@
+{
+  "name": "@fc/samples",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "description": "Synthetic ORTEC ESS screenshots and PDF reports for tests, the OCR bench and README screenshots",
+  "scripts": {
+    "pdf": "node make-pdf.mjs",
+    "screens": "node make-screens.mjs",
+    "all": "node make-pdf.mjs && node make-screens.mjs"
+  },
+  "dependencies": {
+    "mupdf": "^1.28.1",
+    "playwright": "^1.62.1"
+  }
+}

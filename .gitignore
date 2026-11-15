@@ -1,0 +1,42 @@
+node_modules/
+dist/
+.output/
+.nuxt/
+.turbo/
+coverage/
+*.log
+*.tsbuildinfo
+
+# символическая ссылка с абсолютным путём (Nuxt): правило `dist/` её не ловит
+apps/web/dist
+
+# секреты и данные
+.env
+.env.*
+!.env.example
+secrets/*
+!secrets/.gitkeep
+!secrets/README.md
+storage/screenshots/*
+!storage/screenshots/.gitkeep
+
+# реальные снимки, выгрузки и личные документы — только локально
+private/
+
+# свои опознаватели для сканера (содержат реальные данные)
+.scan-local.json
+
+# сборка tsc рядом с исходниками фикстур
+apps/api/test/**/*.js
+apps/api/test/**/*.js.map
+apps/api/test/**/*.d.ts
+
+# снимки схемы MikroORM для временных баз
+apps/api/src/database/migrations/.snapshot-*.json
+!apps/api/src/database/migrations/.snapshot-fc_shift_sync.json
+
+# локальные дополнения к Compose (сеть туннеля и т. п.)
+docker-compose.override.yml
+
+# кэш моделей OCR
+.cache/

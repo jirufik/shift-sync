@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "incremental": true,
+    "tsBuildInfoFile": "./dist/.tsbuildinfo",
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    // `mupdf` объявляет типы только через `exports`, а сборка идёт с
+    // «Node»-разрешением модулей (D-002), которое `exports` не читает. В
+    // рантайме пакет грузится динамическим импортом и находится сам; здесь
+    // указан только путь к его декларациям.
+    "paths": {
+      "mupdf": ["./node_modules/mupdf/dist/mupdf.d.ts"]
+    }
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

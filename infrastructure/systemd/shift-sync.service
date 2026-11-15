@@ -1,0 +1,25 @@
+# Автозапуск Shift Sync через Docker Compose.
+#
+# Установка:
+#   sudo cp infrastructure/systemd/shift-sync.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now shift-sync
+#
+# Путь ниже — пример: поправить под расположение проекта.
+
+[Unit]
+Description=Shift Sync — распознавание графика ORTEC в Google Календарь
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/shift-sync
+ExecStart=/usr/bin/docker compose up -d --remove-orphans
+ExecStop=/usr/bin/docker compose down
+TimeoutStartSec=600
+
+[Install]
+WantedBy=multi-user.target

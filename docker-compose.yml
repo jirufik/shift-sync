@@ -1,0 +1,66 @@
+name: shift-sync
+
+services:
+  postgresql:
+    extends:
+      file: infrastructure/postgresql/docker-compose.yml
+      service: postgresql
+
+  app:
+    build: .
+    container_name: fc-app
+    restart: unless-stopped
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    ports:
+      - "4080:4080"
+    # та же сеть, что и у базы, — иначе postgresql не резолвится по имени.
+    # Свои сети (например, туннеля) добавляются в docker-compose.override.yml —
+    # Compose подхватывает его сам, а в репозиторий он не попадает
+    networks: [fc-net]
+    environment:
+      NODE_ENV: production
+      PORT: 4080
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DB_HOST: postgresql
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-fc_shift_sync}
+      DB_USER: ${DB_USER:-fc_admin}
+      DB_PASSWORD: ${DB_PASSWORD:-fc_admin}
+      DB_AUTO_MIGRATE: ${DB_AUTO_MIGRATE:-true}
+      APP_PASSWORD: ${APP_PASSWORD:?задайте APP_PASSWORD в .env}
+      SESSION_SECRET: ${SESSION_SECRET:?задайте SESSION_SECRET в .env}
+      SESSION_TTL_DAYS: ${SESSION_TTL_DAYS:-30}
+      # true, если сервис открыт снаружи по HTTPS: тогда кука сессии помечается
+      # Secure. По http в локальной сети нужно false, иначе вход не удержится
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      STORAGE_DIR: /app/storage/screenshots
+      SCREENSHOT_RETENTION_DAYS: ${SCREENSHOT_RETENTION_DAYS:-180}
+      OCR_MAX_SIDE_LENGTH: ${OCR_MAX_SIDE_LENGTH:-1280}
+      GOOGLE_SERVICE_ACCOUNT_JSON: /secrets/service-account.json
+      GCAL_CALENDAR_ID: ${GCAL_CALENDAR_ID:-}
+      GCAL_TIMEZONE: ${GCAL_TIMEZONE:-Europe/Helsinki}
+      GCAL_UPDATE_STRATEGY: ${GCAL_UPDATE_STRATEGY:-update}
+      GCAL_EVENT_PREFIX: ${GCAL_EVENT_PREFIX:-Работа}
+      GCAL_COLOR_ID: ${GCAL_COLOR_ID:-11}
+      GCAL_APP_TAG: ${GCAL_APP_TAG:-fc-shift-sync}
+    volumes:
+      - ./secrets:/secrets:ro
+      - fc-screenshots:/app/storage/screenshots
+      - fc-ocr-cache:/cache
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+volumes:
+  fc-postgresql-data:
+  fc-screenshots:
+  fc-ocr-cache:
+
+networks:
+  fc-net:
+    name: fc-net

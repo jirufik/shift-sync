@@ -1,0 +1,14 @@
+{
+  "name": "@fc/ocr-bench",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "scripts": {
+    "recognize": "node run.mjs",
+    "score": "node score.mjs raw-v5-salvage.json"
+  },
+  "dependencies": {
+    "onnxruntime-node": "^1.29.0",
+    "ppu-paddle-ocr": "^6.4.2"
+  }
+}

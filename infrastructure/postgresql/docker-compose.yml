@@ -1,0 +1,29 @@
+name: fc-postgresql
+
+services:
+  postgresql:
+    image: postgres:17
+    container_name: fc-postgresql
+    restart: unless-stopped
+    ports:
+      - "5481:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-fc_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fc_admin}
+      POSTGRES_DB: ${POSTGRES_DB:-fc_shift_sync}
+      TZ: UTC
+    volumes:
+      - fc-postgresql-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fc_admin} -d ${POSTGRES_DB:-fc_shift_sync}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [fc-net]
+
+volumes:
+  fc-postgresql-data:
+
+networks:
+  fc-net:
+    name: fc-net

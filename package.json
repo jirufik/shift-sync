@@ -1,0 +1,31 @@
+{
+  "name": "family-calendar",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.30.3",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "db:up": "docker compose -f infrastructure/postgresql/docker-compose.yml up -d",
+    "db:down": "docker compose -f infrastructure/postgresql/docker-compose.yml down",
+    "bench": "pnpm --filter @fc/ocr-bench run score",
+    "scan": "node scripts/scan-secrets.mjs",
+    "scan:test": "node --test scripts/scan-secrets.test.mjs",
+    "samples": "pnpm --filter @fc/samples run all"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.4",
+    "typescript": "^5.8.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "sharp",
+      "onnxruntime-node",
+      "@swc/core",
+      "esbuild"
+    ]
+  }
+}

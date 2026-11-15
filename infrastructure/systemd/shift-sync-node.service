@@ -1,0 +1,24 @@
+# Альтернатива без Docker: запуск собранного приложения напрямую.
+# Нужен уже поднятый PostgreSQL (pnpm db:up или свой).
+# Пользователь и путь ниже — пример: поправить под свою установку.
+#
+#   sudo cp infrastructure/systemd/shift-sync-node.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now shift-sync-node
+
+[Unit]
+Description=Shift Sync (node)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=shift-sync
+WorkingDirectory=/opt/shift-sync/apps/api
+ExecStart=/usr/bin/env node dist/main.js
+Restart=on-failure
+RestartSec=5
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target
